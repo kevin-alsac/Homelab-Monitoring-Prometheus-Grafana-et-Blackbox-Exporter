@@ -12,19 +12,18 @@ L'objectif est de centraliser dans Grafana l'état de plusieurs équipements du 
 - Grafana pour les dashboards
 - Blackbox Exporter pour les tests de disponibilité
 
-> Projet réalisé dans un environnement de test sous Windows Pro avec Debian WSL et Docker.
+> Projet réalisé dans un environnement de test local avec Docker.
 
 ---
 
 ## Architecture
 
 ```text
-PC Windows Pro
-└── Debian WSL
-    └── Docker
-        ├── prometheus
-        ├── grafana
-        └── blackbox-exporter
+Machine Docker locale
+└── Docker Compose
+    ├── prometheus
+    ├── grafana
+    └── blackbox-exporter
 
 Raspberry Pi
 └── node_exporter :9100
@@ -58,12 +57,12 @@ Ce projet permet de pratiquer :
 
 ## Services utilisés
 
-| Service | Rôle |
-|---|---|
-| Prometheus | Collecte des métriques |
-| Grafana | Visualisation des métriques |
-| Blackbox Exporter | Tests réseau HTTP, ICMP, TCP |
-| Node Exporter | Métriques système du Raspberry Pi |
+| Service           | Rôle                              |
+| ----------------- | --------------------------------- |
+| Prometheus        | Collecte des métriques            |
+| Grafana           | Visualisation des métriques       |
+| Blackbox Exporter | Tests réseau HTTP, ICMP, TCP      |
+| Node Exporter     | Métriques système du Raspberry Pi |
 
 ---
 
@@ -83,10 +82,10 @@ Métriques disponibles :
 - uptime
 - métriques Linux générales
 
-Endpoint Prometheus :
+Endpoint Prometheus, à adapter selon le nom DNS ou l'adresse locale du Raspberry Pi :
 
 ```text
-http://192.0.2.10:9100/metrics
+http://<rpi-host>:9100/metrics
 ```
 
 ### NAS TerraMaster
@@ -96,9 +95,9 @@ Le NAS est supervisé sans agent, avec Blackbox Exporter.
 Tests configurés :
 
 ```text
-ICMP : 192.0.2.20
-HTTP : http://192.0.2.20
-TCP  : 192.0.2.20:445
+ICMP : <nas-host>
+HTTP : http://<nas-host>
+TCP  : <nas-host>:445
 ```
 
 Cela permet de vérifier :
@@ -114,7 +113,7 @@ Cela permet de vérifier :
 La box est supervisée avec un test ICMP :
 
 ```text
-192.0.2.1
+<box-host>
 ```
 
 Cela permet de suivre :
@@ -134,7 +133,7 @@ git clone https://github.com/votre-utilisateur/homelab-monitoring.git
 cd homelab-monitoring
 ```
 
-### 2. Adapter les adresses IP
+### 2. Adapter les cibles surveillées
 
 Modifier le fichier :
 
@@ -142,12 +141,21 @@ Modifier le fichier :
 prometheus/prometheus.yml
 ```
 
-Remplacer les adresses suivantes selon votre réseau :
+Remplacer les placeholders selon votre réseau local :
 
 ```text
-192.0.2.10  # Raspberry Pi
-192.0.2.20  # NAS
-192.0.2.1   # Box Internet
+<rpi-host>  # Raspberry Pi avec node_exporter
+<nas-host>  # NAS
+<box-host>  # Box Internet ou passerelle locale
+```
+
+Exemple de cible Raspberry Pi dans `scrape_configs` :
+
+```yaml
+- job_name: "raspberry-pi"
+  static_configs:
+    - targets:
+        - "<rpi-host>:9100"
 ```
 
 ### 3. Configurer le compte administrateur Grafana
@@ -191,17 +199,7 @@ blackbox-exporter
 http://localhost:3000
 ```
 
-Si l'accès via `localhost` ne fonctionne pas avec WSL, utiliser l'adresse IP WSL :
-
-```bash
-hostname -I
-```
-
-Puis ouvrir :
-
-```text
-http://IP_WSL:3000
-```
+Si l'accès via `localhost` ne fonctionne pas, utiliser l'adresse locale de la machine qui exécute Docker.
 
 Identifiant administrateur :
 
@@ -264,16 +262,22 @@ probe_http_status_code
 100 - (avg by(instance) (rate(node_cpu_seconds_total{job="raspberry-pi",mode="idle"}[5m])) * 100)
 ```
 
-### RAM disponible du Raspberry Pi
+### RAM utilisée du Raspberry Pi
 
 ```promql
-node_memory_MemAvailable_bytes{job="raspberry-pi"} / node_memory_MemTotal_bytes{job="raspberry-pi"} * 100
+100 - ((node_memory_MemAvailable_bytes{job="raspberry-pi"} / node_memory_MemTotal_bytes{job="raspberry-pi"}) * 100)
 ```
 
-### Espace disque disponible du Raspberry Pi
+### Espace disque utilisé du Raspberry Pi
 
 ```promql
-node_filesystem_avail_bytes{job="raspberry-pi",mountpoint="/"} / node_filesystem_size_bytes{job="raspberry-pi",mountpoint="/"} * 100
+100 - ((node_filesystem_avail_bytes{job="raspberry-pi",mountpoint="/"} / node_filesystem_size_bytes{job="raspberry-pi",mountpoint="/"}) * 100)
+```
+
+### Uptime du Raspberry Pi
+
+```promql
+time() - node_boot_time_seconds{job="raspberry-pi"}
 ```
 
 ---
@@ -300,11 +304,32 @@ Homelab Overview
     └── Uptime
 ```
 
+Types de panels recommandés :
+
+```text
+Stat        : états UP/DOWN du NAS et de la box
+Gauge       : CPU, RAM et disque du Raspberry Pi
+Time series : latence réseau et évolution CPU/RAM
+Bar gauge   : comparaison rapide de plusieurs checks
+Table       : diagnostic ponctuel
+```
+
+Exemples rapides :
+
+```text
+CPU Raspberry Pi      -> Gauge ou Time series
+RAM Raspberry Pi      -> Gauge
+Disque Raspberry Pi   -> Gauge
+Uptime Raspberry Pi   -> Stat
+Latence réseau        -> Time series avec probe_duration_seconds
+Statut des services   -> Stat avec probe_success
+```
+
 ---
 
 ## Sécurité
 
-Pour un environnement de test local, les ports sont exposés sur la machine WSL.
+Pour un environnement de test local, les ports sont exposés sur la machine qui exécute Docker.
 
 Pour un usage plus propre :
 

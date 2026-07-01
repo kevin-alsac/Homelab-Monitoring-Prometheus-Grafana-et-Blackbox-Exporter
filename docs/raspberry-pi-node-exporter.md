@@ -28,7 +28,7 @@ wget https://github.com/prometheus/node_exporter/releases/download/v${VERSION}/n
 tar xvf node_exporter-${VERSION}.linux-arm64.tar.gz
 mv node_exporter-${VERSION}.linux-arm64 node_exporter
 
-./node_exporter/node_exporter --web.listen-address=ADRESSE_IP_LOCALE_DU_RPI:9100
+./node_exporter/node_exporter --web.listen-address=:9100
 ```
 
 Test local :
@@ -37,10 +37,28 @@ Test local :
 curl http://localhost:9100/metrics | head
 ```
 
-Test depuis Prometheus :
+Test depuis Prometheus ou depuis la machine qui exécute Docker :
 
 ```text
-http://IP_DU_RPI:9100/metrics
+http://<rpi-host>:9100/metrics
+```
+
+Exemple de cible à déclarer dans `prometheus/prometheus.yml` :
+
+```yaml
+- job_name: "raspberry-pi"
+  static_configs:
+    - targets:
+        - "<rpi-host>:9100"
+```
+
+Panels Grafana simples à tester :
+
+```text
+CPU     : Gauge ou Time series
+RAM     : Gauge
+Disque  : Gauge
+Uptime  : Stat
 ```
 
 ## Service systemd optionnel
@@ -60,7 +78,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/UTILISATEUR/node_exporter/node_exporter --web.listen-address=ADRESSE_IP_LOCALE_DU_RPI:9100
+ExecStart=/home/UTILISATEUR/node_exporter/node_exporter --web.listen-address=:9100
 Restart=unless-stopped
 
 [Install]
