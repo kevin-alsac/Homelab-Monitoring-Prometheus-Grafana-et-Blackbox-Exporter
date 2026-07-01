@@ -1,0 +1,12 @@
+# Docker / volumes locaux
+*.log
+.env
+.env.*
+data/
+volumes/
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
