@@ -282,6 +282,18 @@ time() - node_boot_time_seconds{job="raspberry-pi"}
 
 ---
 
+## Aperçu
+
+### Dashboard Grafana
+
+<img src="docs/grafana-dashboard.png" alt="Dashboard Grafana Homelab" width="850">
+
+### Cibles Prometheus
+
+<img src="docs/prometheus-targets.png" alt="Cibles Prometheus supervisées" width="850">
+
+---
+
 ## Exemple de dashboard Grafana
 
 Dashboard conseillé :
